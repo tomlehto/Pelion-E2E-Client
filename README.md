@@ -15,3 +15,17 @@ mbed toolchain GCC_ARM
 mbed device-management init -d arm.com --model-name example-app --force -q
 mbed compile
 ```
+## Compile for ethernet
+```bash
+mbed compile
+```
+## Compile for WiFi
+Modify configs/wifi_esp8266_v4.json:
+```json
+"nsapi.default-wifi-ssid"           : "\"SSID\"", #<-- SSID here
+"nsapi.default-wifi-password"       : "\"Password\"" #<-- Password here
+```
+Alternatively, create WiFi hotspot on your phone with SSID: "SSID" and password: "Password" :)
+```bash
+mbed compile --app-config configs/wifi_esp8266_v4.json
+```
