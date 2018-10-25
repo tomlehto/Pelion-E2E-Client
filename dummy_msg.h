@@ -34,13 +34,13 @@ typedef struct
 {
     uint16_t device_id;       // BLE device ID, TODO: format?
     uint8_t  updated;         // 1: y, 0: n 
-    uint32_t temp;            // temperature TODO: format?
+    float    temp;            // temperature TODO: format?
     uint32_t signal_strength; // TODO: format?
 } FAKE_BLE_DEVICE_T;
 
 typedef struct
 {
-    time_t timestamp; // seconds from epoch
+    uint32_t msg_id; // seconds from epoch
 
     FAKE_BLE_DEVICE_T device_data;
 

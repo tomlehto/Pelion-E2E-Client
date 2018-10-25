@@ -218,8 +218,9 @@ void main_application(void)
 
 
     // Create resource for BLE beacon device data. Path of this resource will be: 3303/0/5700.
-    mbedClient.add_cloud_resource(3303, 0, 5700, "beacon_data", M2MResourceInstance::STRING,
+    beacon_data_res = mbedClient.add_cloud_resource(3303, 0, 5700, "beacon_data", M2MResourceInstance::STRING,
                  M2MBase::GET_ALLOWED, NULL, true, NULL, NULL);
+
 
     mbedClient.register_and_connect();
 
@@ -230,7 +231,6 @@ void main_application(void)
 
 
     // Check if client is registering or registered, if true sleep and repeat.
-
     while (mbedClient.is_register_called())
     {
         char msg[MSG_LEN];
@@ -243,9 +243,7 @@ void main_application(void)
             beacon_data_res->set_value((const uint8_t*) msg, MSG_LEN);
         }
 
-
-
-        mcc_platform_do_wait(100);
+        mcc_platform_do_wait(10000);
     }
 
     // Client unregistered, exit program.
