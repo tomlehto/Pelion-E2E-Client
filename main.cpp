@@ -27,6 +27,11 @@
 #include "certificate_enrollment_user_cb.h"
 #endif
 
+extern "C"
+{
+#include "dummy_msg.h"
+}
+
 // event based LED blinker, controlled via pattern_resource
 static Blinky blinky;
 
@@ -41,6 +46,8 @@ int main(void)
 static M2MResource* button_res;
 static M2MResource* pattern_res;
 static M2MResource* blink_res;
+
+static M2MResource* beacon_data_res;
 
 // Pointer to mbedClient, used for calling close function.
 static SimpleM2MClient *client;
@@ -208,6 +215,12 @@ void main_application(void)
     mbedClient.add_cloud_resource(5000, 0, 2, "factory_reset", M2MResourceInstance::STRING,
                  M2MBase::POST_ALLOWED, NULL, false, (void*)factory_reset, NULL);
 
+
+
+    // Create resource for BLE beacon device data. Path of this resource will be: 3303/0/5700.
+    mbedClient.add_cloud_resource(3303, 0, 5700, "beacon_data", M2MResourceInstance::STRING,
+                 M2MBase::GET_ALLOWED, NULL, true, NULL, NULL);
+
     mbedClient.register_and_connect();
 
 #ifndef MBED_CONF_MBED_CLOUD_CLIENT_DISABLE_CERTIFICATE_ENROLLMENT
@@ -218,12 +231,21 @@ void main_application(void)
 
     // Check if client is registering or registered, if true sleep and repeat.
 
-    while (mbedClient.is_register_called()) {
-        static int button_count = 0;
-        mcc_platform_do_wait(100);
-        if (mcc_platform_button_clicked()) {
-            button_res->set_value(++button_count);
+    while (mbedClient.is_register_called())
+    {
+        char msg[MSG_LEN];
+        DUMMY_MSG_T msg_t;
+        generate_dummy_msg(&msg_t);
+
+        if(msg_t.device_data.updated)
+        {
+            format_pelion_message(&msg_t, msg);
+            beacon_data_res->set_value((const uint8_t*) msg, MSG_LEN);
         }
+
+
+
+        mcc_platform_do_wait(100);
     }
 
     // Client unregistered, exit program.
