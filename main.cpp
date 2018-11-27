@@ -29,11 +29,17 @@
 
 extern "C"
 {
-#include "dummy_msg.h"
+#include "ble_beacon.h"
 }
 
-// event based LED blinker, controlled via pattern_resource
-static Blinky blinky;
+// value range 0-MAX_CONNECTED_BEACONS
+static uint8_t connected_beacons = 0;
+
+// bitmap indicating valid beacons
+// bit 0 corresponds to beacon_data_res_tbl[0] and so on
+// note: must be under <= 63 bits in length
+static uint16_t data_valid_bmp = 0x0u;
+
 
 static void main_application(void);
 
@@ -43,75 +49,12 @@ int main(void)
 }
 
 // Pointers to the resources that will be created in main_application().
-static M2MResource* button_res;
-static M2MResource* pattern_res;
-static M2MResource* blink_res;
+static M2MResource* beacon_data_res_tbl[MAX_CONNECTED_BEACONS];
+static M2MResource* pelion_data_valid_bmp;
 
-static M2MResource* beacon_data_res;
 
 // Pointer to mbedClient, used for calling close function.
 static SimpleM2MClient *client;
-
-void pattern_updated(const char *)
-{
-    printf("PUT received, new value: %s\n", pattern_res->get_value_string().c_str());
-}
-
-void blinky_completed(void)
-{
-    printf("Blinky completed \n");
-
-    // Send response to backend
-    blink_res->send_delayed_post_response();
-}
-
-void blink_callback(void *)
-{
-    String pattern_string = pattern_res->get_value_string();
-    const char *pattern = pattern_string.c_str();
-    printf("LED pattern = %s\n", pattern);
-
-    // The pattern is something like 500:200:500, so parse that.
-    // LED blinking is done while parsing.
-    const bool restart_pattern = false;
-    if (blinky.start((char*)pattern_res->value(), pattern_res->value_length(), restart_pattern, blinky_completed) == false) {
-        printf("out of memory error\n");
-    }
-}
-
-void button_status_callback(const M2MBase& object,
-                            const M2MBase::MessageDeliveryStatus status,
-                            const M2MBase::MessageType /*type*/)
-{
-    switch(status) {
-        case M2MBase::MESSAGE_STATUS_BUILD_ERROR:
-            printf("Message status callback: (%s) error when building CoAP message\n", object.uri_path());
-            break;
-        case M2MBase::MESSAGE_STATUS_RESEND_QUEUE_FULL:
-            printf("Message status callback: (%s) CoAP resend queue full\n", object.uri_path());
-            break;
-        case M2MBase::MESSAGE_STATUS_SENT:
-            printf("Message status callback: (%s) Message sent to server\n", object.uri_path());
-            break;
-        case M2MBase::MESSAGE_STATUS_DELIVERED:
-            printf("Message status callback: (%s) Message delivered\n", object.uri_path());
-            break;
-        case M2MBase::MESSAGE_STATUS_SEND_FAILED:
-            printf("Message status callback: (%s) Message sending failed\n", object.uri_path());
-            break;
-        case M2MBase::MESSAGE_STATUS_SUBSCRIBED:
-            printf("Message status callback: (%s) subscribed\n", object.uri_path());
-            break;
-        case M2MBase::MESSAGE_STATUS_UNSUBSCRIBED:
-            printf("Message status callback: (%s) subscription removed\n", object.uri_path());
-            break;
-        case M2MBase::MESSAGE_STATUS_REJECTED:
-            printf("Message status callback: (%s) server has rejected the message\n", object.uri_path());
-            break;
-        default:
-            break;
-    }
-}
 
 // This function is called when a POST request is received for resource 5000/0/1.
 void unregister(void *)
@@ -131,6 +74,33 @@ void factory_reset(void *)
     } else {
         printf("Factory reset completed. Now restart the device\n");
     }
+}
+
+// sets new values for resources in Pelion based on client-side data
+void update_beacon_cloud_data()
+{
+    uint32_t i = 0;
+    uint32_t updated_count = 0;
+
+    BEACON_DATA_T* data_tbl = get_beacon_tbl();
+    BEACON_DATA_T* beacon;
+
+    for (i = 0; i < MAX_CONNECTED_BEACONS; i++)
+    {
+        beacon = &(data_tbl[i]);
+
+        if (beacon->element_used && beacon->updated)
+        {
+            beacon_data_res_tbl[i]->set_value_float(beacon->temp);
+            beacon->updated = 0;
+            printf("Beacon %lu temperature updated: %f C\n", i, beacon->temp);
+            updated_count++;
+        }
+    }
+
+    pelion_data_valid_bmp->set_value((int64_t)data_valid_bmp); // safe cast: bitmap shorter than 63 bits
+
+    printf("Updated data from %lu devices sent to Pelion.\n", updated_count);
 }
 
 void main_application(void)
@@ -193,19 +163,6 @@ void main_application(void)
     print_stack_statistics();
 #endif
 
-    // Create resource for button count. Path of this resource will be: 3200/0/5501.
-    button_res = mbedClient.add_cloud_resource(3200, 0, 5501, "button_resource", M2MResourceInstance::INTEGER,
-                              M2MBase::GET_ALLOWED, 0, true, NULL, (void*)button_status_callback);
-
-    // Create resource for led blinking pattern. Path of this resource will be: 3201/0/5853.
-    pattern_res = mbedClient.add_cloud_resource(3201, 0, 5853, "pattern_resource", M2MResourceInstance::STRING,
-                               M2MBase::GET_PUT_ALLOWED, "500:500:500:500", false, (void*)pattern_updated, NULL);
-
-    // Create resource for starting the led blinking. Path of this resource will be: 3201/0/5850.
-    blink_res = mbedClient.add_cloud_resource(3201, 0, 5850, "blink_resource", M2MResourceInstance::STRING,
-                             M2MBase::POST_ALLOWED, "", false, (void*)blink_callback, (void*)button_status_callback);
-    // Use delayed response
-    blink_res->set_delayed_response(true);
 
     // Create resource for unregistering the device. Path of this resource will be: 5000/0/1.
     mbedClient.add_cloud_resource(5000, 0, 1, "unregister", M2MResourceInstance::STRING,
@@ -215,12 +172,23 @@ void main_application(void)
     mbedClient.add_cloud_resource(5000, 0, 2, "factory_reset", M2MResourceInstance::STRING,
                  M2MBase::POST_ALLOWED, NULL, false, (void*)factory_reset, NULL);
 
+    init_beacon_tbl();
 
+    uint16_t i;
+    for (i = 0; i < MAX_CONNECTED_BEACONS; i++)
+    {
+        char res_name[32] = {0};
+        M2MResource* res;
 
-    // Create resource for BLE beacon device data. Path of this resource will be: 3303/0/5700.
-    beacon_data_res = mbedClient.add_cloud_resource(3303, 0, 5700, "beacon_data", M2MResourceInstance::STRING,
-                 M2MBase::GET_ALLOWED, NULL, true, NULL, NULL);
+        sprintf(res_name, "beacon_%02x_temperature", i);
+        res = mbedClient.add_cloud_resource(3303u, i, 5700u, res_name, 
+                                        M2MResourceInstance::FLOAT, M2MBase::GET_PUT_ALLOWED, "", true, NULL, NULL);
+        beacon_data_res_tbl[i] = res;
+    }
 
+    // TODO: check path, this was copied from blinking pattern resource
+    pelion_data_valid_bmp = mbedClient.add_cloud_resource(3201, 0, 5853, "beacon_validity_bitmap", 
+                                M2MResourceInstance::INTEGER, M2MBase::GET_PUT_ALLOWED, 0, true, NULL, NULL);
 
     mbedClient.register_and_connect();
 
@@ -230,20 +198,27 @@ void main_application(void)
 #endif // MBED_CONF_MBED_CLOUD_CLIENT_DISABLE_CERTIFICATE_ENROLLMENT
 
 
+    uint8_t dummy_update_idx = 0;
+
     // Check if client is registering or registered, if true sleep and repeat.
     while (mbedClient.is_register_called())
     {
-        char msg[MSG_LEN];
-        DUMMY_MSG_T msg_t;
-        generate_dummy_msg(&msg_t);
-
-        if(msg_t.device_data.updated)
+        if (1 /* BLE device connected */ && (connected_beacons < MAX_CONNECTED_BEACONS))
         {
-            format_pelion_message(&msg_t, msg);
-            beacon_data_res->set_value((const uint8_t*) msg, MSG_LEN);
-        }
+            uint32_t tbl_idx = add_beacon();
 
-        mcc_platform_do_wait(10000);
+            if (tbl_idx != INVALID_U32)
+            {
+                data_valid_bmp |= (0x1u << tbl_idx);
+                connected_beacons++;
+            }
+        }
+ 
+        dummy_update_beacon_data(dummy_update_idx);
+        update_beacon_cloud_data();
+
+        dummy_update_idx = (dummy_update_idx < (MAX_CONNECTED_BEACONS -1)) ? (dummy_update_idx + 1) : 0;
+        mcc_platform_do_wait(5000);
     }
 
     // Client unregistered, exit program.

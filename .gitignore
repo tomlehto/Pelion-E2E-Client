@@ -1,5 +1,6 @@
 mbed_cloud_dev_credentials.c
 update_default_resources.c
+wifi_esp8266_v4.json
 .manifest_tool.json
 .update-certificates/default.der
 .update-certificates/default.key.pem
