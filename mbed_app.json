@@ -27,7 +27,9 @@
         "K64F": {
             "target.network-default-interface-type" : "ETHERNET",
             "update-client.bootloader-details"      : "0x00007188",
-            "update-client.application-details"     : "(40*1024)"
+            "update-client.application-details"     : "(40*1024)",
+            "target.features_add": ["BLE"],
+            "target.extra_labels_add": ["CORDIO", "CORDIO_BLUENRG"]
         },
         "K66F": {
             "target.network-default-interface-type" : "ETHERNET",
