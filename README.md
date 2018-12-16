@@ -31,9 +31,9 @@ mbed compile --app-config configs/wifi_esp8266_v4.json
 ```
 ## Add BLE feature
 Modify main.cpp:
-´´´c
+```c
 #define FEA_BLE 1
-´´´
+```
 Modify shields/TARGET_CORDIO_BLUENRG/bluenrg_targets.h
 ```c
 #define BLUENRG_PIN_SPI_SCK (D13) // Pin D3 has to be changed to D13 for Arduino shield pinout compatibility
