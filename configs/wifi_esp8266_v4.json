@@ -22,8 +22,8 @@
             "esp8266.tx"                : "D1",
             "esp8266.provide-default"   : true,
             "nsapi.default-wifi-security"       : "WPA_WPA2",
-            "nsapi.default-wifi-ssid"           : "\"SSID\"",
-            "nsapi.default-wifi-password"       : "\"Password\""
+            "nsapi.default-wifi-ssid"           : "\"Nokia6\"",
+            "nsapi.default-wifi-password"       : "\"87654321\""
         },
         "STM_EMAC": {
             "lwip.pbuf-pool-size" : 16,
@@ -32,7 +32,9 @@
         "K64F": {
             "target.network-default-interface-type" : "WIFI",
             "update-client.bootloader-details"      : "0x00007188",
-            "update-client.application-details"     : "(40*1024)"
+            "update-client.application-details"     : "(40*1024)",
+            "target.features_add"                   : ["BLE"],
+            "target.extra_labels_add"               : ["CORDIO", "CORDIO_BLUENRG"]
         },
         "NUCLEO_F429ZI": {
             "target.network-default-interface-type" : "WIFI",
