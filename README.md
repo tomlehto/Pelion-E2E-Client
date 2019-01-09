@@ -44,7 +44,7 @@ Modify shields/TARGET_CORDIO_BLUENRG/bluenrg_targets.h
 ```c
 #define BLUENRG_PIN_SPI_SCK (D13) // Pin D3 has to be changed to D13 for Arduino shield pinout compatibility
 ```
-## Run unit tests
+## Run unit tests https://os.mbed.com/docs/v5.10/tools/unit-testing.html
 After deploying mbed project:
 ```bash
 mkdir mbed-os/ble_beacon
