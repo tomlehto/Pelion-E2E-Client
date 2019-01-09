@@ -4,6 +4,7 @@
 * FRDM K64F or similar development board
 * ST X-NUCLEO-IDB05A1 or similar bluetooth low energy extension board
 * ESP8266-based Grove UART-WiFi adapter
+
 This project should work out of the box with this hardware setup. Minor changes may be needed if other hardware is used.
 ## Prerequisites:
 * mbed-cli installed
