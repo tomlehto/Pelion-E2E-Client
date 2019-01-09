@@ -1,5 +1,10 @@
 # Pelion-E2E-Client
 
+## Hardware:
+* FRDM K64F or similar development board
+* ST X-NUCLEO-IDB05A1 or similar bluetooth low energy extension board
+* ESP8266-based Grove UART-WiFi adapter
+This project should work out of the box with this hardware setup. Minor changes may be needed if other hardware is used.
 ## Prerequisites:
 * mbed-cli installed
 * GCC_ARM toolchain installed
@@ -25,7 +30,7 @@ Modify configs/wifi_esp8266_v4.json:
 "nsapi.default-wifi-ssid"           : "\"SSID\"", #<-- SSID here
 "nsapi.default-wifi-password"       : "\"Password\"" #<-- Password here
 ```
-Alternatively, create WiFi hotspot on your phone with SSID: "SSID" and password: "Password" :)
+Alternatively, create WiFi hotspot with SSID: "SSID" and password: "Password" :)
 ```bash
 mbed compile --app-config configs/wifi_esp8266_v4.json
 ```
