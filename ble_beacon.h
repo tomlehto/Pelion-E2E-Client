@@ -23,3 +23,4 @@ uint32_t add_beacon(uint8_t i);
 void init_beacon_tbl();
 void dummy_update_beacon_data(uint8_t index);
 void update_beacon_data(uint8_t index, uint8_t temp);
+void delete_beacon(uint8_t tbl_idx);
